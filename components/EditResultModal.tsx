@@ -16,6 +16,7 @@ function draftFromResult(result: Result): ResultDraft {
     failed: result.failed,
     solveOrder: result.solve_order ?? [],
     spangramPosition: result.spangram_position,
+    firstGreenGuess: result.first_green_guess,
     rawText: result.raw_text,
   };
 }
@@ -55,6 +56,7 @@ export default function EditResultModal({
         raw_text: draft.rawText,
         solve_order: draft.game === "connections" ? draft.solveOrder : null,
         spangram_position: draft.game === "strands" ? draft.spangramPosition : null,
+        first_green_guess: draft.game === "wordle" ? draft.firstGreenGuess : null,
       });
       await refetch();
       onClose();

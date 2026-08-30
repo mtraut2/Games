@@ -19,6 +19,7 @@ export interface Result {
   raw_text: string;
   solve_order: ConnectionsColor[] | null; // connections only
   spangram_position: number | null; // strands only, 1-indexed among found words
+  first_green_guess: number | null; // wordle only, 1-indexed guess row of the first 🟩
   created_at: string;
   updated_at: string;
 }

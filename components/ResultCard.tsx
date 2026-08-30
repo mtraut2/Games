@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAppData } from "@/lib/context/AppDataContext";
 import { deleteResult } from "@/lib/db";
+import { scoreLabel } from "@/lib/scoreLabel";
 import { GAME_LABELS, type Result } from "@/lib/types";
 import ReactionBar from "./ReactionBar";
 import CommentThread from "./CommentThread";
@@ -13,13 +14,6 @@ const GAME_ICON: Record<Result["game"], string> = {
   connections: "🟪",
   strands: "🔵",
 };
-
-function scoreLabel(result: Result): string {
-  if (result.game === "wordle") return result.failed ? "X/6" : `${result.score}/6`;
-  if (result.game === "connections")
-    return `${result.score} mistake${result.score === 1 ? "" : "s"}`;
-  return `${result.score} hint${result.score === 1 ? "" : "s"}`;
-}
 
 export default function ResultCard({ result }: { result: Result }) {
   const { people, refetch } = useAppData();
@@ -52,7 +46,7 @@ export default function ResultCard({ result }: { result: Result }) {
             </pre>
           ) : (
             <p className="text-sm text-neutral-500">
-              {scoreLabel(result)}
+              {scoreLabel(result.game, result.score, result.failed)}
               {result.puzzle_number ? ` · #${result.puzzle_number}` : ""}
             </p>
           )}

@@ -49,6 +49,7 @@ export interface UpsertResultInput {
   raw_text: string;
   solve_order: ConnectionsColor[] | null;
   spangram_position: number | null;
+  first_green_guess: number | null;
 }
 
 export async function upsertResult(input: UpsertResultInput): Promise<Result> {

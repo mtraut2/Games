@@ -12,6 +12,7 @@ export interface ResultDraft {
   failed: boolean;
   solveOrder: ConnectionsColor[];
   spangramPosition: number | null;
+  firstGreenGuess: number | null;
   rawText: string;
 }
 
@@ -64,7 +65,7 @@ export default function ResultForm({
               // newly selected game, rather than carrying over a stale
               // score/flag from whichever game was previously selected.
               if (game === "wordle") {
-                onChange({ game, score: 3, failed: false });
+                onChange({ game, score: 3, failed: false, firstGreenGuess: null });
               } else if (game === "connections") {
                 onChange({ game, score: 1, solveOrder: [] });
               } else {
@@ -104,25 +105,42 @@ export default function ResultForm({
       </div>
 
       {draft.game === "wordle" && (
-        <label className="flex flex-col gap-1 text-sm">
-          Guesses
-          <select
-            value={draft.failed ? "X" : String(draft.score)}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === "X") onChange({ failed: true, score: 7 });
-              else onChange({ failed: false, score: parseInt(v, 10) });
-            }}
-            className={inputClass}
-          >
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <option key={n} value={n}>
-                {n}/6
-              </option>
-            ))}
-            <option value="X">X/6 (fail)</option>
-          </select>
-        </label>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <label className="flex flex-col gap-1">
+            Guesses
+            <select
+              value={draft.failed ? "X" : String(draft.score)}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "X") onChange({ failed: true, score: 7 });
+                else onChange({ failed: false, score: parseInt(v, 10) });
+              }}
+              className={inputClass}
+            >
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <option key={n} value={n}>
+                  {n}/6
+                </option>
+              ))}
+              <option value="X">X/6 (fail)</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            First green guess (optional)
+            <input
+              type="number"
+              min={1}
+              max={6}
+              value={draft.firstGreenGuess ?? ""}
+              onChange={(e) =>
+                onChange({
+                  firstGreenGuess: e.target.value ? parseInt(e.target.value, 10) : null,
+                })
+              }
+              className={inputClass}
+            />
+          </label>
+        </div>
       )}
 
       {draft.game === "connections" && (

@@ -24,18 +24,21 @@ export default function PointsExplainer() {
             {third} — based on fewer guesses, fewer mistakes, or fewer hints.
           </p>
           <p>
-            A tie on that score isn&apos;t always a tie on skill: in Connections, whoever
-            solved the harder categories (blue/purple) earlier wins the tiebreak; in
-            Strands, whoever found the spangram earlier wins it. Only when both the score
-            and that tiebreak match do people split the points evenly — e.g. two people
-            tied in every way for 1st/2nd share {first + second} pts, {(first + second) / 2}{" "}
-            each. Wordle has no tiebreaker, so equal guesses always split.
+            A tie on that score isn&apos;t always a tie on skill: in Wordle, whoever found
+            their first correct letter in fewer guesses wins the tiebreak; in Connections,
+            whoever solved the harder categories (blue/purple) earlier wins it; in Strands,
+            whoever found the spangram earlier wins it. Only when both the score and that
+            tiebreak match do people split the points evenly — e.g. two people tied in
+            every way for 1st/2nd share {first + second} pts, {(first + second) / 2} each.
           </p>
           <p>
-            Play all three games in one day and have the lowest combined score, and you
-            get an extra +{OVERALL_WINNER_BONUS} bonus point for that day (also split if
-            tied). Only people who played all three games that day are eligible — everyone
-            else still earns points toward Overall from whichever games they do play.
+            Play all three games in one day and earn the most combined points across them,
+            and you get an extra +{OVERALL_WINNER_BONUS} bonus point for that day — points,
+            not raw score, since points already put every game on the same scale and already
+            account for each game&apos;s own tiebreak. A tied points total splits the bonus
+            evenly, since that tie already means two people were equally strong today, just
+            via different games. Only people who played all three games that day are eligible
+            — everyone else still earns points toward Overall from whichever games they play.
           </p>
           <p>
             The tabs above let you view Overall standings or just one game — handy if you

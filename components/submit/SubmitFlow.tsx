@@ -6,7 +6,10 @@ import { upsertResult } from "@/lib/db";
 import { usePerson } from "@/lib/context/PersonContext";
 import { useAppData } from "@/lib/context/AppDataContext";
 import { todayDateString } from "@/lib/today";
+import { scoreLabel } from "@/lib/scoreLabel";
+import { GAME_LABELS } from "@/lib/types";
 import ResultForm, { type ResultDraft } from "./ResultForm";
+import EditResultModal from "../EditResultModal";
 
 function blankDraft(personId: string): ResultDraft {
   return {
@@ -18,13 +21,14 @@ function blankDraft(personId: string): ResultDraft {
     failed: false,
     solveOrder: [],
     spangramPosition: null,
+    firstGreenGuess: null,
     rawText: "",
   };
 }
 
 export default function SubmitFlow() {
   const { currentPersonId } = usePerson();
-  const { refetch } = useAppData();
+  const { results, people, refetch } = useAppData();
   const [pasteText, setPasteText] = useState("");
   const [draft, setDraft] = useState<ResultDraft | null>(null);
   const [needsSpangramConfirmation, setNeedsSpangramConfirmation] = useState(false);
@@ -33,8 +37,16 @@ export default function SubmitFlow() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [editingExisting, setEditingExisting] = useState(false);
 
   if (!currentPersonId) return null;
+
+  const existingResult = draft
+    ? results.find(
+        (r) => r.person_id === draft.personId && r.game === draft.game && r.date === draft.date
+      )
+    : undefined;
+  const today = todayDateString();
 
   function handleParse() {
     const parsed = detectAndParse(pasteText);
@@ -61,6 +73,7 @@ export default function SubmitFlow() {
         failed: parsed.failed,
         solveOrder: [],
         spangramPosition: null,
+        firstGreenGuess: parsed.firstGreenGuess,
       });
       setNeedsSpangramConfirmation(false);
     } else if (parsed.game === "connections") {
@@ -71,6 +84,7 @@ export default function SubmitFlow() {
         failed: false,
         solveOrder: parsed.solveOrder,
         spangramPosition: null,
+        firstGreenGuess: null,
       });
       setNeedsSpangramConfirmation(false);
     } else {
@@ -81,6 +95,7 @@ export default function SubmitFlow() {
         failed: false,
         solveOrder: [],
         spangramPosition: parsed.spangramPosition,
+        firstGreenGuess: null,
       });
       setNeedsSpangramConfirmation(parsed.needsSpangramConfirmation);
       setTotalFoundWords(parsed.totalFoundWords);
@@ -103,6 +118,7 @@ export default function SubmitFlow() {
         raw_text: draft.rawText,
         solve_order: draft.game === "connections" ? draft.solveOrder : null,
         spangram_position: draft.game === "strands" ? draft.spangramPosition : null,
+        first_green_guess: draft.game === "wordle" ? draft.firstGreenGuess : null,
       });
       await refetch();
       setPasteText("");
@@ -161,35 +177,62 @@ export default function SubmitFlow() {
   }
 
   return (
-    <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-      <h2 className="font-medium">
-        {mode === "manual" ? "Enter result manually" : "Confirm your result"}
-      </h2>
-      {needsSpangramConfirmation && (
-        <p className="mt-1 text-sm text-amber-600">
-          Couldn&apos;t tell which found word was the spangram — which one was it?
-        </p>
-      )}
-      <div className="mt-3">
-        <ResultForm
-          draft={draft!}
-          onChange={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))}
-          totalFoundWords={totalFoundWords}
+    <>
+      <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+        <h2 className="font-medium">
+          {mode === "manual" ? "Enter result manually" : "Confirm your result"}
+        </h2>
+        {needsSpangramConfirmation && (
+          <p className="mt-1 text-sm text-amber-600">
+            Couldn&apos;t tell which found word was the spangram — which one was it?
+          </p>
+        )}
+        {existingResult && draft && (
+          <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-sm dark:border-amber-800 dark:bg-amber-950">
+            <p className="text-amber-800 dark:text-amber-200">
+              {people.find((p) => p.id === draft.personId)?.name ?? "This person"} already has a{" "}
+              {GAME_LABELS[draft.game]} result {draft.date === today ? "today" : `for ${draft.date}`}{" "}
+              ({scoreLabel(existingResult.game, existingResult.score, existingResult.failed)}).
+              Saving here will overwrite it.
+            </p>
+            <button
+              onClick={() => setEditingExisting(true)}
+              className="mt-1 font-medium text-amber-800 underline dark:text-amber-200"
+            >
+              Edit that entry instead
+            </button>
+          </div>
+        )}
+        <div className="mt-3">
+          <ResultForm
+            draft={draft!}
+            onChange={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))}
+            totalFoundWords={totalFoundWords}
+          />
+        </div>
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        <div className="mt-3 flex items-center justify-between">
+          <button onClick={handleCancel} className="text-sm text-neutral-500 underline">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+      {editingExisting && existingResult && (
+        <EditResultModal
+          result={existingResult}
+          onClose={() => {
+            setEditingExisting(false);
+            handleCancel();
+          }}
         />
-      </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-      <div className="mt-3 flex items-center justify-between">
-        <button onClick={handleCancel} className="text-sm text-neutral-500 underline">
-          Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
-      </div>
-    </div>
+      )}
+    </>
   );
 }

@@ -19,6 +19,7 @@ function makeResult(personId: string, date: string): Result {
     raw_text: "",
     solve_order: null,
     spangram_position: null,
+    first_green_guess: null,
     created_at: "",
     updated_at: "",
   };

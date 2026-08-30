@@ -6,6 +6,7 @@ import {
   computeDailyOverallWinners,
   resultsForGameAndDate,
 } from "@/lib/scoring";
+import { scoreLabel } from "@/lib/scoreLabel";
 import { GAMES, GAME_LABELS, type Game, type Result } from "@/lib/types";
 
 const GAME_ICON: Record<Game, string> = {
@@ -15,16 +16,10 @@ const GAME_ICON: Record<Game, string> = {
 };
 
 const TIEBREAK_NOTE: Record<Game, string | null> = {
-  wordle: null,
+  wordle: "Ties on guesses are broken by who found their first correct letter earliest.",
   connections: "Ties on mistakes are broken by who solved the harder categories (blue/purple) earlier.",
   strands: "Ties on hints are broken by who found the spangram earlier.",
 };
-
-function scoreLabel(game: Game, score: number): string {
-  if (game === "wordle") return score === 7 ? "X/6" : `${score}/6`;
-  if (game === "connections") return `${score} mistake${score === 1 ? "" : "s"}`;
-  return `${score} hint${score === 1 ? "" : "s"}`;
-}
 
 export default function WinnersExplainer({
   date,
@@ -48,15 +43,30 @@ export default function WinnersExplainer({
     list.push(r);
     byPerson.set(r.person_id, list);
   }
-  const qualifying = [...byPerson.entries()]
-    .filter(([, rs]) => GAMES.every((g) => rs.some((r) => r.game === g)))
-    .map(([personId, rs]) => ({
-      personId,
-      byGame: GAMES.map((g) => rs.find((r) => r.game === g)!.score),
-      sum: rs.reduce((s, r) => s + r.score, 0),
-    }))
-    .sort((a, b) => a.sum - b.sum);
   const overallWinnerIds = new Set(computeDailyOverallWinners(dateResults).map((w) => w.personId));
+  const qualifyingIds = [...byPerson.entries()]
+    .filter(([, rs]) => GAMES.every((g) => rs.some((r) => r.game === g)))
+    .map(([personId]) => personId);
+
+  // Points per game (already tiebreak-adjusted), keyed by person, for the overall table below.
+  const pointsByGameByPerson = new Map<string, number[]>();
+  GAMES.forEach((game, idx) => {
+    const gameResults = resultsForGameAndDate(results, game, date);
+    for (const standing of computeDailyGameStandings(gameResults)) {
+      if (!qualifyingIds.includes(standing.personId)) continue;
+      const arr = pointsByGameByPerson.get(standing.personId) ?? [0, 0, 0];
+      arr[idx] = standing.points;
+      pointsByGameByPerson.set(standing.personId, arr);
+    }
+  });
+
+  const qualifying = qualifyingIds
+    .map((personId) => {
+      const byGame = pointsByGameByPerson.get(personId) ?? [0, 0, 0];
+      return { personId, byGame, sum: byGame.reduce((s, p) => s + p, 0) };
+    })
+    .sort((a, b) => b.sum - a.sum);
+  const sumsTied = qualifying.filter((q) => q.sum === qualifying[0]?.sum).length > 1;
 
   return (
     <div
@@ -133,16 +143,22 @@ export default function WinnersExplainer({
                         {nameFor(q.personId)}
                       </span>
                       <span className="text-neutral-500">
-                        {q.byGame.join(" + ")} = {q.sum}
+                        {q.byGame.join(" + ")} = {q.sum} pts
                       </span>
                     </li>
                   ))}
                 </ul>
                 <p className="mt-1 text-xs text-neutral-500">
-                  Lowest combined score wins, among everyone who&apos;s played all three games —
+                  Most combined points wins, among everyone who&apos;s played all three games —
                   even without winning any single category. Winning a game and winning the day
                   are different things.
                 </p>
+                {sumsTied && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    A tied points total splits the bonus evenly — it already means they were
+                    equally strong today, just via different games.
+                  </p>
+                )}
               </>
             )}
           </section>

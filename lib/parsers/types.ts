@@ -8,6 +8,7 @@ export interface ParsedWordle {
   puzzleNumber: number | null;
   score: number; // guesses used, 1-6; a fail is stored as 7 (worse than 6/6)
   failed: boolean;
+  firstGreenGuess: number | null; // 1-indexed guess row of the first 🟩, if the grid was included
 }
 
 export interface ParsedConnections {

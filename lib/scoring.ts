@@ -45,6 +45,15 @@ function strandsSpangramRank(result: Result): number {
   return result.spangram_position ?? 999;
 }
 
+/**
+ * Rewards finding a correct letter earlier. Already ascending (lower guess
+ * number = found sooner = better). Missing data (no grid was pasted, or a
+ * fail with no green tile at all) sorts last among ties.
+ */
+function wordleFirstGreenRank(result: Result): number {
+  return result.first_green_guess ?? 999;
+}
+
 /** Lexicographic comparison: first differing element decides. */
 function compareRankKeys(a: number[], b: number[]): number {
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
@@ -85,12 +94,12 @@ function pooledPlacePoints<T>(entries: T[], rankKeyOf: (item: T) => number[]): M
 /**
  * The rank key for a result within its game: primarily raw score (fewer
  * guesses/mistakes/hints wins), with a game-specific tiebreaker for equal
- * scores. Wordle has no secondary signal, so equal scores stay a true tie.
+ * scores.
  */
 function rankKeyForResult(result: Result): number[] {
   if (result.game === "connections") return [result.score, connectionsQualityRank(result)];
   if (result.game === "strands") return [result.score, strandsSpangramRank(result)];
-  return [result.score];
+  return [result.score, wordleFirstGreenRank(result)];
 }
 
 export interface DailyGameStanding {
@@ -119,11 +128,24 @@ export function dailyGameWinners(results: Result[]): string[] {
 
 export interface OverallWinner {
   personId: string;
-  totalScore: number;
+  totalPoints: number;
   bonusPoints: number;
 }
 
-/** `results` must all be for a single date (any/all games). */
+/**
+ * `results` must all be for a single date (any/all games). Ranked by
+ * combined points earned across the three games — not raw score — since
+ * points already normalize each game onto the same 0-3 scale and already
+ * incorporate that game's own tiebreaker (Wordle first-green timing,
+ * Connections solve order, Strands spangram timing). Summing raw scores
+ * instead would let Connections' unbounded mistake count swamp the other
+ * two games, and picking a single game's tiebreaker to decide the whole
+ * day would ignore a real advantage in whichever game gets checked second.
+ * A tied points total splits the
+ * bonus evenly — that tie already means they were equally strong today,
+ * just via different games, so reaching for another signal to force a
+ * winner would reintroduce the same "one game arbitrarily decides" problem.
+ */
 export function computeDailyOverallWinners(results: Result[]): OverallWinner[] {
   const byPerson = new Map<string, Result[]>();
   for (const r of results) {
@@ -132,20 +154,35 @@ export function computeDailyOverallWinners(results: Result[]): OverallWinner[] {
     byPerson.set(r.person_id, list);
   }
 
-  const qualifying = [...byPerson.entries()]
-    .filter(([, personResults]) => GAMES.every((g) => personResults.some((r) => r.game === g)))
-    .map(([personId, personResults]) => ({
-      personId,
-      totalScore: personResults.reduce((sum, r) => sum + r.score, 0),
-    }));
+  const qualifyingIds = new Set(
+    [...byPerson.entries()]
+      .filter(([, personResults]) => GAMES.every((g) => personResults.some((r) => r.game === g)))
+      .map(([personId]) => personId)
+  );
 
-  if (qualifying.length === 0) return [];
+  if (qualifyingIds.size === 0) return [];
 
-  const minScore = Math.min(...qualifying.map((q) => q.totalScore));
-  const winners = qualifying.filter((q) => q.totalScore === minScore);
-  const bonusShare = OVERALL_WINNER_BONUS / winners.length;
+  const pointsByPerson = new Map<string, number>();
+  for (const game of GAMES) {
+    const gameResults = results.filter((r) => r.game === game);
+    for (const standing of computeDailyGameStandings(gameResults)) {
+      if (!qualifyingIds.has(standing.personId)) continue;
+      pointsByPerson.set(
+        standing.personId,
+        (pointsByPerson.get(standing.personId) ?? 0) + standing.points
+      );
+    }
+  }
 
-  return winners.map((w) => ({ ...w, bonusPoints: bonusShare }));
+  const maxPoints = Math.max(...[...qualifyingIds].map((id) => pointsByPerson.get(id) ?? 0));
+  const winnerIds = [...qualifyingIds].filter((id) => (pointsByPerson.get(id) ?? 0) === maxPoints);
+  const bonusShare = OVERALL_WINNER_BONUS / winnerIds.length;
+
+  return winnerIds.map((personId) => ({
+    personId,
+    totalPoints: pointsByPerson.get(personId) ?? 0,
+    bonusPoints: bonusShare,
+  }));
 }
 
 export interface SeasonStanding {

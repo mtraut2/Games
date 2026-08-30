@@ -21,6 +21,7 @@ function makeResult(overrides: Partial<Result>): Result {
     raw_text: "",
     solve_order: null,
     spangram_position: null,
+    first_green_guess: null,
     created_at: "",
     updated_at: "",
     ...overrides,
@@ -141,7 +142,17 @@ describe("computeDailyGameStandings", () => {
     expect(standings.find((s) => s.personId === "b")?.points).toBe(2);
   });
 
-  it("does not apply a tiebreaker across different Wordle scores (no secondary signal)", () => {
+  it("breaks a Wordle guess-count tie by who found their first green sooner", () => {
+    const results = [
+      makeResult({ person_id: "a", game: "wordle", score: 3, first_green_guess: 1 }),
+      makeResult({ person_id: "b", game: "wordle", score: 3, first_green_guess: 3 }),
+    ];
+    const standings = computeDailyGameStandings(results);
+    expect(standings.find((s) => s.personId === "a")?.points).toBe(3);
+    expect(standings.find((s) => s.personId === "b")?.points).toBe(2);
+  });
+
+  it("still splits a Wordle tie when first-green data is missing for both", () => {
     const results = [
       makeResult({ person_id: "a", game: "wordle", score: 3 }),
       makeResult({ person_id: "b", game: "wordle", score: 3 }),
@@ -186,17 +197,17 @@ describe("computeDailyOverallWinners", () => {
       makeResult({ person_id: "a", game: "wordle", score: 2 }),
       makeResult({ person_id: "a", game: "connections", score: 1 }),
       makeResult({ person_id: "a", game: "strands", score: 0 }),
-      // b only played wordle
-      makeResult({ person_id: "b", game: "wordle", score: 1 }),
+      // b only played wordle, and worse than a there too
+      makeResult({ person_id: "b", game: "wordle", score: 5 }),
     ];
     const winners = computeDailyOverallWinners(results);
     expect(winners).toHaveLength(1);
     expect(winners[0].personId).toBe("a");
-    expect(winners[0].totalScore).toBe(3);
+    expect(winners[0].totalPoints).toBe(9); // solo win in all 3 games = 3+3+3
     expect(winners[0].bonusPoints).toBe(2);
   });
 
-  it("splits the bonus when two people tie for the lowest sum", () => {
+  it("splits the bonus when two people earn equal points overall", () => {
     const results = [
       makeResult({ person_id: "a", game: "wordle", score: 2 }),
       makeResult({ person_id: "a", game: "connections", score: 1 }),
@@ -205,14 +216,57 @@ describe("computeDailyOverallWinners", () => {
       makeResult({ person_id: "b", game: "connections", score: 1 }),
       makeResult({ person_id: "b", game: "strands", score: 1 }),
     ];
+    // wordle: b wins (3) a 2nd (2). connections: tied, no solve order -> split (2.5 each).
+    // strands: a wins (3) b 2nd (2). Both total 7.5 -- a mirror-image tie.
     const winners = computeDailyOverallWinners(results);
     expect(winners).toHaveLength(2);
-    for (const w of winners) expect(w.bonusPoints).toBe(1);
+    for (const w of winners) {
+      expect(w.totalPoints).toBe(7.5);
+      expect(w.bonusPoints).toBe(1);
+    }
   });
 
   it("returns no winners when nobody completed all three games", () => {
     const results = [makeResult({ person_id: "a", game: "wordle", score: 2 })];
     expect(computeDailyOverallWinners(results)).toEqual([]);
+  });
+
+  it("preserves a real tie when each person wins a different category (today's actual scenario)", () => {
+    const strongOrder: Result["solve_order"] = ["purple", "blue", "green", "yellow"]; // hardest first
+    const weakOrder: Result["solve_order"] = ["yellow", "green", "blue", "purple"]; // easiest first
+    const results = [
+      makeResult({ person_id: "a", game: "wordle", score: 3 }),
+      makeResult({ person_id: "a", game: "connections", score: 0, solve_order: strongOrder }),
+      makeResult({ person_id: "a", game: "strands", score: 0, spangram_position: 3 }),
+      makeResult({ person_id: "b", game: "wordle", score: 3 }),
+      makeResult({ person_id: "b", game: "connections", score: 0, solve_order: weakOrder }),
+      makeResult({ person_id: "b", game: "strands", score: 0, spangram_position: 1 }),
+    ];
+    // wordle: tied (2.5 each). connections: a's solve order wins it (3 vs 2).
+    // strands: b found the spangram earlier and wins it (3 vs 2). Both total 7.5.
+    const winners = computeDailyOverallWinners(results);
+    expect(winners).toHaveLength(2);
+    for (const w of winners) expect(w.totalPoints).toBe(7.5);
+  });
+
+  it("ranks by points, not raw score — winning more categories beats one big margin", () => {
+    const results = [
+      makeResult({ person_id: "a", game: "wordle", score: 1 }),
+      makeResult({ person_id: "a", game: "connections", score: 1 }),
+      makeResult({ person_id: "a", game: "strands", score: 10 }), // one bad game
+      makeResult({ person_id: "b", game: "wordle", score: 5 }),
+      makeResult({ person_id: "b", game: "connections", score: 5 }),
+      makeResult({ person_id: "b", game: "strands", score: 0 }), // one great game
+    ];
+    // raw sums: a=12, b=10 -- b would win under a pure score-sum rule.
+    // points: a wins wordle+connections (3+3), loses strands (2) = 8.
+    //         b loses wordle+connections (2+2), wins strands (3) = 7.
+    // a wins on points despite the worse raw total, since winning 2 of 3
+    // categories outweighs one large margin in the third.
+    const winners = computeDailyOverallWinners(results);
+    expect(winners).toHaveLength(1);
+    expect(winners[0].personId).toBe("a");
+    expect(winners[0].totalPoints).toBe(8);
   });
 });
 
