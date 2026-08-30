@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppDataProvider } from "@/lib/context/AppDataContext";
 import { PersonProvider } from "@/lib/context/PersonContext";
 import Shell from "@/components/Shell";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "Games",
@@ -37,6 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-white text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-100">
+        <ServiceWorkerRegister />
         <AppDataProvider>
           <PersonProvider>
             <Shell>{children}</Shell>
