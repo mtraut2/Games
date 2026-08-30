@@ -200,14 +200,10 @@ describe("computeDailyOverallWinners", () => {
       // b only played wordle, and worse than a there too
       makeResult({ person_id: "b", game: "wordle", score: 5 }),
     ];
-    const winners = computeDailyOverallWinners(results);
-    expect(winners).toHaveLength(1);
-    expect(winners[0].personId).toBe("a");
-    expect(winners[0].totalPoints).toBe(9); // solo win in all 3 games = 3+3+3
-    expect(winners[0].bonusPoints).toBe(2);
+    expect(computeDailyOverallWinners(results)).toEqual(["a"]);
   });
 
-  it("splits the bonus when two people earn equal points overall", () => {
+  it("returns everyone tied for the top combined points — no splitting, just a shared badge", () => {
     const results = [
       makeResult({ person_id: "a", game: "wordle", score: 2 }),
       makeResult({ person_id: "a", game: "connections", score: 1 }),
@@ -218,12 +214,7 @@ describe("computeDailyOverallWinners", () => {
     ];
     // wordle: b wins (3) a 2nd (2). connections: tied, no solve order -> split (2.5 each).
     // strands: a wins (3) b 2nd (2). Both total 7.5 -- a mirror-image tie.
-    const winners = computeDailyOverallWinners(results);
-    expect(winners).toHaveLength(2);
-    for (const w of winners) {
-      expect(w.totalPoints).toBe(7.5);
-      expect(w.bonusPoints).toBe(1);
-    }
+    expect(computeDailyOverallWinners(results).sort()).toEqual(["a", "b"]);
   });
 
   it("returns no winners when nobody completed all three games", () => {
@@ -244,9 +235,7 @@ describe("computeDailyOverallWinners", () => {
     ];
     // wordle: tied (2.5 each). connections: a's solve order wins it (3 vs 2).
     // strands: b found the spangram earlier and wins it (3 vs 2). Both total 7.5.
-    const winners = computeDailyOverallWinners(results);
-    expect(winners).toHaveLength(2);
-    for (const w of winners) expect(w.totalPoints).toBe(7.5);
+    expect(computeDailyOverallWinners(results).sort()).toEqual(["a", "b"]);
   });
 
   it("ranks by points, not raw score — winning more categories beats one big margin", () => {
@@ -263,20 +252,18 @@ describe("computeDailyOverallWinners", () => {
     //         b loses wordle+connections (2+2), wins strands (3) = 7.
     // a wins on points despite the worse raw total, since winning 2 of 3
     // categories outweighs one large margin in the third.
-    const winners = computeDailyOverallWinners(results);
-    expect(winners).toHaveLength(1);
-    expect(winners[0].personId).toBe("a");
-    expect(winners[0].totalPoints).toBe(8);
+    expect(computeDailyOverallWinners(results)).toEqual(["a"]);
   });
 });
 
 describe("computeSeasonStandings", () => {
-  it("aggregates game points and bonus points across days", () => {
+  it("sums points earned per game across days — no separate bonus source", () => {
     const results = [
       // day 1: a wins wordle outright
       makeResult({ person_id: "a", game: "wordle", date: "2026-08-01", score: 2 }),
       makeResult({ person_id: "b", game: "wordle", date: "2026-08-01", score: 4 }),
-      // day 2: a sweeps all three games and wins overall bonus too
+      // day 2: a sweeps all three games (also today's overall winner, but
+      // that badge doesn't add any points beyond what's earned below)
       makeResult({ person_id: "a", game: "wordle", date: "2026-08-02", score: 1 }),
       makeResult({ person_id: "a", game: "connections", date: "2026-08-02", score: 0 }),
       makeResult({ person_id: "a", game: "strands", date: "2026-08-02", score: 0 }),
@@ -286,10 +273,8 @@ describe("computeSeasonStandings", () => {
     const a = standings.find((s) => s.personId === "a")!;
     // day1: wordle win = 3. day2: wordle win = 3, plus connections/strands
     // where a is the only entrant (solo win still counts) = 3 + 3.
-    // 3 + 3 + 3 + 3 = 12 game points, +2 overall-winner bonus on day2.
-    expect(a.gamePoints).toBe(12);
-    expect(a.bonusPoints).toBe(2);
-    expect(a.totalPoints).toBe(14);
+    // 3 + 3 + 3 + 3 = 12 total points.
+    expect(a.totalPoints).toBe(12);
   });
 
   it("breaks down points per game so a single-game player can be ranked on it", () => {

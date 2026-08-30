@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { OVERALL_WINNER_BONUS, POINTS_BY_PLACE } from "@/lib/scoring";
+import { POINTS_BY_PLACE } from "@/lib/scoring";
 
 export default function PointsExplainer() {
   const [open, setOpen] = useState(false);
@@ -32,13 +32,12 @@ export default function PointsExplainer() {
             every way for 1st/2nd share {first + second} pts, {(first + second) / 2} each.
           </p>
           <p>
-            Play all three games in one day and earn the most combined points across them,
-            and you get an extra +{OVERALL_WINNER_BONUS} bonus point for that day — points,
-            not raw score, since points already put every game on the same scale and already
-            account for each game&apos;s own tiebreak. A tied points total splits the bonus
-            evenly, since that tie already means two people were equally strong today, just
-            via different games. Only people who played all three games that day are eligible
-            — everyone else still earns points toward Overall from whichever games they play.
+            Play all three games in one day and have the most combined points, and you&apos;re
+            that day&apos;s Overall winner — a recognition badge shown on Today, not an extra
+            source of points. Your season total is purely what you&apos;ve earned from the
+            three games, nothing added on top. Only people who played all three games that
+            day are eligible for the badge — everyone else still earns points toward Overall
+            from whichever games they play.
           </p>
           <p>
             The tabs above let you view Overall standings or just one game — handy if you

@@ -43,7 +43,7 @@ export default function WinnersExplainer({
     list.push(r);
     byPerson.set(r.person_id, list);
   }
-  const overallWinnerIds = new Set(computeDailyOverallWinners(dateResults).map((w) => w.personId));
+  const overallWinnerIds = new Set(computeDailyOverallWinners(dateResults));
   const qualifyingIds = [...byPerson.entries()]
     .filter(([, rs]) => GAMES.every((g) => rs.some((r) => r.game === g)))
     .map(([personId]) => personId);
@@ -149,14 +149,15 @@ export default function WinnersExplainer({
                   ))}
                 </ul>
                 <p className="mt-1 text-xs text-neutral-500">
-                  Most combined points wins, among everyone who&apos;s played all three games —
-                  even without winning any single category. Winning a game and winning the day
-                  are different things.
+                  🏆 here is just recognition for the best combined day, among everyone who&apos;s
+                  played all three games — it doesn&apos;t add any extra points on top of what
+                  was already earned above. Winning a game and winning the day are different
+                  things.
                 </p>
                 {sumsTied && (
                   <p className="mt-1 text-xs text-amber-600">
-                    A tied points total splits the bonus evenly — it already means they were
-                    equally strong today, just via different games.
+                    Tied for the top combined score — everyone listed here shares today&apos;s
+                    overall win.
                   </p>
                 )}
               </>

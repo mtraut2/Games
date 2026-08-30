@@ -2,7 +2,6 @@ import type { ConnectionsColor, Game, Result } from "./types";
 import { GAMES } from "./types";
 
 export const POINTS_BY_PLACE = [3, 2, 1];
-export const OVERALL_WINNER_BONUS = 2;
 
 // Standard NYT Connections convention: yellow is the most straightforward
 // category, purple the trickiest. Used only to break ties in mistakes.
@@ -126,27 +125,19 @@ export function dailyGameWinners(results: Result[]): string[] {
   return standings.filter((s) => s.points === maxPoints).map((s) => s.personId);
 }
 
-export interface OverallWinner {
-  personId: string;
-  totalPoints: number;
-  bonusPoints: number;
-}
-
 /**
- * `results` must all be for a single date (any/all games). Ranked by
- * combined points earned across the three games — not raw score — since
- * points already normalize each game onto the same 0-3 scale and already
- * incorporate that game's own tiebreaker (Wordle first-green timing,
- * Connections solve order, Strands spangram timing). Summing raw scores
- * instead would let Connections' unbounded mistake count swamp the other
- * two games, and picking a single game's tiebreaker to decide the whole
- * day would ignore a real advantage in whichever game gets checked second.
- * A tied points total splits the
- * bonus evenly — that tie already means they were equally strong today,
- * just via different games, so reaching for another signal to force a
- * winner would reintroduce the same "one game arbitrarily decides" problem.
+ * Who had the most combined points across the three games on this date —
+ * a recognition badge, not a points source. `results` must all be for a
+ * single date (any/all games); only people who played all three qualify.
+ * Ranked by points (not raw score) since points already normalize each
+ * game onto the same 0-3 scale and already incorporate that game's own
+ * tiebreaker (Wordle first-green timing, Connections solve order, Strands
+ * spangram timing) — summing raw scores instead would let Connections'
+ * unbounded mistake count swamp the other two games. Everyone tied for the
+ * top combined score is returned — a tie here just means multiple people
+ * share the badge, nothing is split.
  */
-export function computeDailyOverallWinners(results: Result[]): OverallWinner[] {
+export function computeDailyOverallWinners(results: Result[]): string[] {
   const byPerson = new Map<string, Result[]>();
   for (const r of results) {
     const list = byPerson.get(r.person_id) ?? [];
@@ -175,39 +166,27 @@ export function computeDailyOverallWinners(results: Result[]): OverallWinner[] {
   }
 
   const maxPoints = Math.max(...[...qualifyingIds].map((id) => pointsByPerson.get(id) ?? 0));
-  const winnerIds = [...qualifyingIds].filter((id) => (pointsByPerson.get(id) ?? 0) === maxPoints);
-  const bonusShare = OVERALL_WINNER_BONUS / winnerIds.length;
-
-  return winnerIds.map((personId) => ({
-    personId,
-    totalPoints: pointsByPerson.get(personId) ?? 0,
-    bonusPoints: bonusShare,
-  }));
+  return [...qualifyingIds].filter((id) => (pointsByPerson.get(id) ?? 0) === maxPoints);
 }
 
 export interface SeasonStanding {
   personId: string;
-  gamePoints: number;
-  bonusPoints: number;
   totalPoints: number;
   byGame: Record<Game, number>;
 }
 
 /**
  * `results` should already be filtered to whatever date range is active —
- * this function has no notion of "all time" vs a window.
+ * this function has no notion of "all time" vs a window. Purely the sum of
+ * points earned per game — there's no separate bonus source anymore.
  */
 export function computeSeasonStandings(results: Result[]): SeasonStanding[] {
-  const totals = new Map<
-    string,
-    { gamePoints: number; bonusPoints: number; byGame: Record<Game, number> }
-  >();
+  const totals = new Map<string, { totalPoints: number; byGame: Record<Game, number> }>();
   const emptyByGame = (): Record<Game, number> => ({ wordle: 0, connections: 0, strands: 0 });
-  const add = (personId: string, points: number, bonusPoints: number, game: Game | null) => {
-    const entry = totals.get(personId) ?? { gamePoints: 0, bonusPoints: 0, byGame: emptyByGame() };
-    entry.gamePoints += points;
-    entry.bonusPoints += bonusPoints;
-    if (game) entry.byGame[game] += points;
+  const add = (personId: string, points: number, game: Game) => {
+    const entry = totals.get(personId) ?? { totalPoints: 0, byGame: emptyByGame() };
+    entry.totalPoints += points;
+    entry.byGame[game] += points;
     totals.set(personId, entry);
   };
 
@@ -217,22 +196,13 @@ export function computeSeasonStandings(results: Result[]): SeasonStanding[] {
     for (const game of GAMES) {
       const gameResults = byGame.get(game) ?? [];
       for (const standing of computeDailyGameStandings(gameResults)) {
-        add(standing.personId, standing.points, 0, game);
+        add(standing.personId, standing.points, game);
       }
-    }
-    for (const winner of computeDailyOverallWinners(dateResults)) {
-      add(winner.personId, 0, winner.bonusPoints, null);
     }
   }
 
   return [...totals.entries()]
-    .map(([personId, { gamePoints, bonusPoints, byGame }]) => ({
-      personId,
-      gamePoints,
-      bonusPoints,
-      totalPoints: gamePoints + bonusPoints,
-      byGame,
-    }))
+    .map(([personId, { totalPoints, byGame }]) => ({ personId, totalPoints, byGame }))
     .sort((a, b) => b.totalPoints - a.totalPoints);
 }
 

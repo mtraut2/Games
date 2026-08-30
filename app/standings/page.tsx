@@ -18,6 +18,12 @@ const TAB_LABELS: Record<Tab, string> = {
   strands: GAME_LABELS.strands,
 };
 
+const GAME_ICON: Record<Game, string> = {
+  wordle: "🟩",
+  connections: "🟪",
+  strands: "🔵",
+};
+
 function perGameSubtext(game: Game, results: Result[]): string {
   if (game === "wordle") {
     const stats = computeWordleStats(results);
@@ -91,8 +97,9 @@ export default function StandingsPage() {
               <p className="font-semibold">{row.points.toFixed(1)} pts</p>
               {tab === "overall" ? (
                 <p className="text-xs text-neutral-500">
-                  {row.standing.gamePoints.toFixed(1)} game + {row.standing.bonusPoints.toFixed(1)}{" "}
-                  bonus
+                  {GAMES.map((g) => `${GAME_ICON[g]} ${row.standing.byGame[g].toFixed(1)}`).join(
+                    "  "
+                  )}
                 </p>
               ) : (
                 <p className="text-xs text-neutral-500">

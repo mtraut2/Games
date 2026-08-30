@@ -67,7 +67,7 @@ export default function TodaySummary() {
         </div>
         {overallWinners.length > 0 && (
           <p className="mt-3 text-sm font-medium">
-            🏆 Overall winner: {overallWinners.map((w) => nameFor(w.personId)).join(" & ")}
+            🏆 Overall winner: {overallWinners.map((id) => nameFor(id)).join(" & ")}
           </p>
         )}
       </div>
