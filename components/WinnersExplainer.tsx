@@ -17,7 +17,7 @@ const GAME_ICON: Record<Game, string> = {
 
 const TIEBREAK_NOTE: Record<Game, string | null> = {
   wordle: "Ties on guesses are broken by who found their first correct letter earliest.",
-  connections: "Ties on mistakes are broken by who solved the harder categories (blue/purple) earlier.",
+  connections: "Ties on mistakes are broken by who solved the harder categories (purple/blue) earlier.",
   strands: "Ties on hints are broken by who found the spangram earlier.",
 };
 

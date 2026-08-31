@@ -26,7 +26,7 @@ export default function PointsExplainer() {
           <p>
             A tie on that score isn&apos;t always a tie on skill: in Wordle, whoever found
             their first correct letter in fewer guesses wins the tiebreak; in Connections,
-            whoever solved the harder categories (blue/purple) earlier wins it; in Strands,
+            whoever solved the harder categories (purple/blue) earlier wins it; in Strands,
             whoever found the spangram earlier wins it. Only when both the score and that
             tiebreak match do people split the points evenly — e.g. two people tied in
             every way for 1st/2nd share {first + second} pts, {(first + second) / 2} each.
