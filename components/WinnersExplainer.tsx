@@ -148,12 +148,6 @@ export default function WinnersExplainer({
                     </li>
                   ))}
                 </ul>
-                <p className="mt-1 text-xs text-neutral-500">
-                  🏆 here is just recognition for the best combined day, among everyone who&apos;s
-                  played all three games — it doesn&apos;t add any extra points on top of what
-                  was already earned above. Winning a game and winning the day are different
-                  things.
-                </p>
                 {sumsTied && (
                   <p className="mt-1 text-xs text-amber-600">
                     Tied for the top combined score — everyone listed here shares today&apos;s
